@@ -8,13 +8,9 @@ class ManualExecutor : Executor {
 
     override fun execute(command: Runnable) = tasks.push(command)
 
-    fun runAllTasks() =
-        if (tasks.isEmpty()) {
-            false
-        } else {
-            while (tasks.isNotEmpty()) {
-                tasks.pop().run()
-            }
-            true
+    fun runAllTasks() {
+        while (tasks.isNotEmpty()) {
+            tasks.pop().run()
         }
+    }
 }
