@@ -64,6 +64,14 @@ class SourceIntoAsyncFlow {
         assertThat(asyncComputations).hasSize(2)
         assertThat(asyncComputations.remove().cancelled).isTrue()
     }
+
+    @Test
+    fun computationIsCancelledWhenSourceIsCleared() {
+        source.value = null
+        assertThat(flow.state).hasClass(NodeStreamState.Empty::class)
+        assertThat(asyncComputations).hasSize(1)
+        assertThat(asyncComputations.remove().cancelled).isTrue()
+    }
 }
 
 class SourceToAsyncToSync {
