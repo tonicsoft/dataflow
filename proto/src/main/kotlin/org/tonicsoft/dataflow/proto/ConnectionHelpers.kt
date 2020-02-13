@@ -15,14 +15,11 @@ fun <P1, RequestT, ResponseT> Node<ResponseT>.connectGrpc(
     function: (P1) -> RequestT
 ) {
     @Suppress("UNCHECKED_CAST")
-    connectNodes(listOf(p1)) {
+    connectNodesAsync(listOf(p1)) {
         Observable.create { emitter ->
+            val call = channel.newCall(methodDescriptor, CallOptions.DEFAULT)
 
-            val call = channel.newCall(
-                methodDescriptor,
-                CallOptions.DEFAULT
-            )
-            emitter.setCancellable { call.cancel(null, null) }
+            emitter.setCancellable { call.cancel("computation not required", null) }
 
             val request: RequestT = function(it[0] as P1)
 

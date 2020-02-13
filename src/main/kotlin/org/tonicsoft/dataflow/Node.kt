@@ -37,17 +37,21 @@ class Node<T>(private val context: Context) {
         connectBase(Observable.just(listOf(newState))) {
             @Suppress("UNCHECKED_CAST")
             Observable.just<T>(it[0] as T)
-                .subscribeOn(context.secondPhaseScheduler)
+                .observeOn(context.secondPhaseScheduler)
         }
     }
 
-    fun connectNodes(inputs: List<Node<*>>, function: (List<*>) -> Observable<T>) {
-        connectBase(
-            @Suppress("UNCHECKED_CAST")
-            Observable.combineLatest(inputs.map { it.observable }) { it.asList() as List<NodeStreamState<*>> },
-            function
-        )
+    fun connectNodes(inputs: List<Node<*>>, function: (List<*>) -> T) {
+        connectBase(inputs.observeStates()) { Observable.just(function(it)) }
     }
+
+    fun connectNodesAsync(inputs: List<Node<*>>, function: (List<*>) -> Observable<T>) {
+        connectBase(inputs.observeStates(), function)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun List<Node<*>>.observeStates(): Observable<List<NodeStreamState<*>>> =
+        Observable.combineLatest(this.map { it.observable }) { it.asList() as List<NodeStreamState<*>> }
 }
 
 private fun <T> mapStates(
