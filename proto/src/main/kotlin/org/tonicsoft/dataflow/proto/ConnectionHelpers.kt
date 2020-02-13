@@ -5,7 +5,7 @@ import io.grpc.Channel
 import io.grpc.MethodDescriptor
 import io.grpc.stub.ClientCalls.asyncUnaryCall
 import io.grpc.stub.StreamObserver
-import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import org.tonicsoft.dataflow.Node
 
 fun <P1, RequestT, ResponseT> Node<ResponseT>.connectGrpc(
@@ -16,7 +16,7 @@ fun <P1, RequestT, ResponseT> Node<ResponseT>.connectGrpc(
 ) {
     @Suppress("UNCHECKED_CAST")
     connectNodesAsync(listOf(p1)) {
-        Observable.create { emitter ->
+        Single.create { emitter ->
             val call = channel.newCall(methodDescriptor, CallOptions.DEFAULT)
 
             emitter.setCancellable { call.cancel("computation not required", null) }
@@ -26,16 +26,14 @@ fun <P1, RequestT, ResponseT> Node<ResponseT>.connectGrpc(
             asyncUnaryCall(
                 call, request, object : StreamObserver<ResponseT> {
                     override fun onNext(value: ResponseT) {
-                        emitter.onNext(value)
+                        emitter.onSuccess(value)
                     }
 
                     override fun onError(t: Throwable) {
                         emitter.onError(t)
                     }
 
-                    override fun onCompleted() {
-                        emitter.onComplete()
-                    }
+                    override fun onCompleted() {}
                 }
             )
         }

@@ -1,6 +1,7 @@
 package org.tonicsoft.dataflow
 
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 
@@ -24,7 +25,7 @@ class Node<T>(private val context: Context) {
 
     private fun connectBase(
         inputs: Observable<List<NodeStreamState<*>>>,
-        function: (List<*>) -> Observable<T>
+        function: (List<*>) -> Single<T>
     ) = context.transaction {
         subscription?.dispose()
         subscription = inputs
@@ -36,16 +37,16 @@ class Node<T>(private val context: Context) {
         val newState: NodeStreamState<T> = if (value == null) NodeStreamState.Empty() else NodeStreamState.Valid(value)
         connectBase(Observable.just(listOf(newState))) {
             @Suppress("UNCHECKED_CAST")
-            Observable.just<T>(it[0] as T)
+            Single.just<T>(it[0] as T)
                 .observeOn(context.secondPhaseScheduler)
         }
     }
 
     fun connectNodes(inputs: List<Node<*>>, function: (List<*>) -> T) {
-        connectBase(inputs.observeStates()) { Observable.just(function(it)) }
+        connectBase(inputs.observeStates()) { Single.just(function(it)) }
     }
 
-    fun connectNodesAsync(inputs: List<Node<*>>, function: (List<*>) -> Observable<T>) {
+    fun connectNodesAsync(inputs: List<Node<*>>, function: (List<*>) -> Single<T>) {
         connectBase(inputs.observeStates(), function)
     }
 
@@ -56,15 +57,15 @@ class Node<T>(private val context: Context) {
 
 private fun <T> mapStates(
     inputStates: List<NodeStreamState<*>>,
-    mapping: (List<*>) -> Observable<T>
+    mapping: (List<*>) -> Single<T>
 ): Observable<NodeStreamState<T>> = when {
     inputStates.any { it is NodeStreamState.Empty } -> Observable.just(NodeStreamState.Empty())
     inputStates.any { it is NodeStreamState.Computing } -> Observable.just(NodeStreamState.Computing())
     inputStates.all { it is NodeStreamState.Valid } -> {
-        val computingState = Observable.just(NodeStreamState.Computing<T>())
-        val newState: Observable<NodeStreamState<T>> = mapping(inputStates.values())
+        val computingState = Single.just(NodeStreamState.Computing<T>())
+        val newState: Single<NodeStreamState<T>> = mapping(inputStates.values())
             .map { NodeStreamState.Valid(it) }
-        Observable.concat(computingState, newState)
+        Single.concat(Observable.just(computingState, newState))
     }
     else -> throw IllegalStateException()
 }

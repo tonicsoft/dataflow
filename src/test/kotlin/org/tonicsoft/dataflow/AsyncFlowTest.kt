@@ -5,13 +5,13 @@ import assertk.assertions.hasClass
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isTrue
-import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.core.ObservableEmitter
+import io.reactivex.rxjava3.core.Single
+import io.reactivex.rxjava3.core.SingleEmitter
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.*
 
-class TestAsyncComputation<T>(private val emitter: ObservableEmitter<T>) {
+class TestAsyncComputation<T>(private val emitter: SingleEmitter<T>) {
     var cancelled = false
         private set
 
@@ -20,16 +20,11 @@ class TestAsyncComputation<T>(private val emitter: ObservableEmitter<T>) {
     }
 
     fun provideResult(result: T) {
-        emitter.onNext(result)
-        emitter.onComplete()
-    }
-
-    fun provideError() {
-        emitter.onError(RuntimeException("foo"))
+        emitter.onSuccess(result)
     }
 }
 
-fun <T> Queue<TestAsyncComputation<T>>.scheduleAsync() = Observable.create<T> {
+fun <T> Queue<TestAsyncComputation<T>>.scheduleAsync() = Single.create<T> {
     this.add(TestAsyncComputation(it))
 }
 
