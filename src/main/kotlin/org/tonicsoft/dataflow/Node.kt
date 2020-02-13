@@ -47,7 +47,9 @@ class Node<T>(private val context: Context) {
     }
 
     fun connectNodesAsync(inputs: List<Node<*>>, function: (List<*>) -> Single<T>) {
-        connectBase(inputs.observeStates(), function)
+        connectBase(inputs.observeStates()){
+            function(it).observeOn(context.asyncResultScheduler)
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
