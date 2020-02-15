@@ -13,7 +13,8 @@ class Node<T>(private val context: Context) {
     private val subject: BehaviorSubject<NodeStreamState<T>> =
         BehaviorSubject.createDefault(NodeStreamState.Empty())
 
-    private val observable: Observable<NodeStreamState<T>> get() = subject
+    private val externalUpdates: Observable<NodeStreamState<T>> =
+        subject.debounce { context.transactionMarker.toObservable() }
 
     val state: NodeStreamState<T> get() = subject.value
 
@@ -47,14 +48,20 @@ class Node<T>(private val context: Context) {
     }
 
     fun connectNodesAsync(inputs: List<Node<*>>, function: (List<*>) -> Single<T>) {
-        connectBase(inputs.observeStates()){
+        connectBase(inputs.observeStates()) {
             function(it).observeOn(context.asyncResultScheduler)
         }
     }
 
     @Suppress("UNCHECKED_CAST")
     fun List<Node<*>>.observeStates(): Observable<List<NodeStreamState<*>>> =
-        Observable.combineLatest(this.map { it.observable }) { it.asList() as List<NodeStreamState<*>> }
+        Observable.combineLatest(this.map { it.subject }) { it.asList() as List<NodeStreamState<*>> }
+
+    fun observable(block: Observable<NodeStreamState<T>>.() -> Unit) {
+        context.transaction {
+            block(externalUpdates)
+        }
+    }
 }
 
 private fun <T> mapStates(

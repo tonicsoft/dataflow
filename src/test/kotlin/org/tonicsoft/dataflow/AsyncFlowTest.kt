@@ -48,6 +48,7 @@ class SourceIntoAsyncFlow {
     @Test
     fun becomeValidWhenComputationIsCompleted() {
         asyncComputations.remove().provideResult(3)
+        Thread.sleep(1000)
         assertThat(flow.state).hasClass(NodeStreamState.Valid::class)
         assertThat(flow.value).isEqualTo(3)
     }
@@ -91,6 +92,7 @@ class SourceToAsyncToSync {
     fun whenComputationCompletedLeafIsCompleted() {
         assertThat(asyncComputations).hasSize(1)
         asyncComputations.remove().provideResult(3)
+        Thread.sleep(1000)
         assertThat(syncFlow.value).isEqualTo(3)
         assertThat(syncFlow.state).hasClass(NodeStreamState.Valid::class)
     }
@@ -124,6 +126,7 @@ class AsyncFlowAsBaseOfDiamond {
     fun leafOnlyRecomputedOnceWhenAsyncCompleted() {
         count = 0
         asyncComputations.remove().provideResult(1)
+        Thread.sleep(1000)
         assertThat(summer.value).isEqualTo(2)
         assertThat(count).isEqualTo(1)
     }
