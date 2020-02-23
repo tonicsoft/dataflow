@@ -7,6 +7,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isTrue
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.core.SingleEmitter
+import io.reactivex.rxjava3.observers.TestObserver
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.*
@@ -33,22 +34,27 @@ class SourceIntoAsyncFlow {
     val source = context.makeNode(1)
     val flow = context.makeNode<Int>()
     val asyncComputations: Queue<TestAsyncComputation<Int>> = ArrayDeque()
+    val testObserver = TestObserver<NodeStreamState<Int>>()
 
     @BeforeEach
     fun connectInputs() {
         flow.connectAsync(source) { asyncComputations.scheduleAsync() }
+        flow.observable { subscribe(testObserver) }
     }
 
     @Test
     fun initialStateIsComputing() {
         assertThat(flow.state).hasClass(NodeStreamState.Computing::class)
         assertThat(asyncComputations.size).isEqualTo(1)
+
+        testObserver.assertValue { it is NodeStreamState.Computing }
     }
 
     @Test
     fun becomeValidWhenComputationIsCompleted() {
         asyncComputations.remove().provideResult(3)
         Thread.sleep(1000)
+        testObserver.assertValueCount(2)
         assertThat(flow.state).hasClass(NodeStreamState.Valid::class)
         assertThat(flow.value).isEqualTo(3)
     }
