@@ -2,6 +2,7 @@ package org.tonicsoft.dataflow
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import io.reactivex.rxjava3.observers.TestObserver
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -9,11 +10,14 @@ class SourceChangedTwiceInTransaction {
     val context = Context()
     val source = context.makeNode(1)
     val countingDoubler = context.makeNode<Int>()
+    val sink = TestObserver<NodeStreamState<Int>>()
     var count = 0
 
     @BeforeEach
     fun connectInputs() {
         countingDoubler.connect(source) { i -> count++; i * 2 }
+        countingDoubler.observable { subscribe(sink) }
+        sink.awaitCount(1)
     }
 
     @Test
@@ -24,6 +28,7 @@ class SourceChangedTwiceInTransaction {
             source.value = 3
         }
 
+        sink.awaitCount(2)
         assertThat(countingDoubler.value).isEqualTo(6)
         assertThat(count).isEqualTo(1)
     }
@@ -34,11 +39,14 @@ class TwoChangedSourcesIntoOneFlow {
     val source1 = context.makeNode(1)
     val source2 = context.makeNode(1)
     val summer = context.makeNode<Int>()
+    val sink = TestObserver<NodeStreamState<Int>>()
     var count = 0
 
     @BeforeEach
     fun connectInputs() {
         summer.connect(source1, source2) { left, right -> count++; left + right}
+        summer.observable { subscribe(sink) }
+        sink.awaitCount(1)
     }
 
     @Test
@@ -49,6 +57,7 @@ class TwoChangedSourcesIntoOneFlow {
             source2.value = 2
         }
 
+        sink.awaitCount(2)
         assertThat(summer.value).isEqualTo(4)
         assertThat(count).isEqualTo(1)
     }
@@ -60,6 +69,7 @@ class DiamondConnectedInATransaction {
     val passThrough = context.makeNode<Int>()
     val passThrough2 = context.makeNode<Int>()
     val summer = context.makeNode<Int>()
+    val sink = TestObserver<NodeStreamState<Int>>()
     var count = 0
 
     @BeforeEach
@@ -68,14 +78,15 @@ class DiamondConnectedInATransaction {
             passThrough.connect(source) { it }
             passThrough2.connect(source) { it }
             summer.connect(passThrough, passThrough2) { left, right -> count++; left + right }
+            summer.observable { subscribe(sink) }
         }
+        sink.awaitCount(1)
     }
 
     @Test
     fun initialValue() {
         assertThat(summer.value).isEqualTo(2)
         assertThat(count).isEqualTo(1)
-
     }
 
     @Test
@@ -84,6 +95,8 @@ class DiamondConnectedInATransaction {
         context.transaction {
             source.value = 2
         }
+
+        sink.awaitCount(2)
 
         assertThat(summer.value).isEqualTo(4)
         assertThat(count).isEqualTo(1)
@@ -96,6 +109,7 @@ class DiamondConnectedNotInATransaction {
     val passThrough = context.makeNode<Int>()
     val passThrough2 = context.makeNode<Int>()
     val summer = context.makeNode<Int>()
+    val sink = TestObserver<NodeStreamState<Int>>()
     var count = 0
 
     @BeforeEach
@@ -103,6 +117,8 @@ class DiamondConnectedNotInATransaction {
         passThrough.connect(source) { it }
         passThrough2.connect(source) { it }
         summer.connect(passThrough, passThrough2) { left, right -> count++; left + right }
+        summer.observable { subscribe(sink) }
+        sink.awaitCount(1)
     }
 
     @Test
@@ -115,6 +131,7 @@ class DiamondConnectedNotInATransaction {
     fun sourceUpdatedTwiceInOneTransaction() {
         count = 0
         source.value = 2
+        sink.awaitCount(2)
 
         assertThat(summer.value).isEqualTo(4)
         assertThat(count).isEqualTo(1)
@@ -128,6 +145,7 @@ class IndirectDiamond {
     val passThroughRight1 = context.makeNode<Int>()
     val passThroughRight2 = context.makeNode<Int>()
     val summer = context.makeNode<Int>()
+    val sink = TestObserver<NodeStreamState<Int>>()
     var count = 0
 
     @BeforeEach
@@ -136,6 +154,8 @@ class IndirectDiamond {
         passThroughRight1.connect(source) { it }
         passThroughRight2.connect(passThroughRight1) { it }
         summer.connect(passThroughLeft, passThroughRight2) { left, right -> count++; left + right }
+        summer.observable { subscribe(sink) }
+        sink.awaitCount(1)
     }
 
     @Test
@@ -148,6 +168,7 @@ class IndirectDiamond {
     fun leafOnlyRecomputedOnceWhenSourceUpdated() {
         count = 0
         source.value = 2
+        sink.awaitCount(2)
 
         assertThat(summer.value).isEqualTo(4)
         assertThat(count).isEqualTo(1)
@@ -161,6 +182,7 @@ class DiamondWithFlowAsBase {
     val passThroughLeft = context.makeNode<Int>()
     val passThroughRight = context.makeNode<Int>()
     val summer = context.makeNode<Int>()
+    val sink = TestObserver<NodeStreamState<Int>>()
     var count = 0
 
     @BeforeEach
@@ -169,6 +191,8 @@ class DiamondWithFlowAsBase {
         passThroughLeft.connect(diamondBase) { it }
         passThroughRight.connect(diamondBase) { it }
         summer.connect(passThroughLeft, passThroughRight) { left, right -> count++; left + right }
+        summer.observable { subscribe(sink) }
+        sink.awaitCount(1)
     }
 
     @Test
@@ -181,6 +205,7 @@ class DiamondWithFlowAsBase {
     fun leafOnlyRecomputedOnceWhenSourceUpdated() {
         count = 0
         source.value = 2
+        sink.awaitCount(2)
 
         assertThat(summer.value).isEqualTo(4)
         assertThat(count).isEqualTo(1)
