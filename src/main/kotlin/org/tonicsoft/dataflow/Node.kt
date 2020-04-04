@@ -39,7 +39,7 @@ class Node<T>(private val context: Context) {
         connectBase(Observable.just(listOf(newState))) {
             @Suppress("UNCHECKED_CAST")
             Single.just<T>(it[0] as T)
-                .observeOn(context.transactionExecutor.secondPhaseScheduler)
+                .observeOn(context.transactionExecutor.scheduler)
         }
     }
 
@@ -49,7 +49,7 @@ class Node<T>(private val context: Context) {
 
     fun connectNodesAsync(inputs: List<Node<*>>, function: (List<*>) -> Single<T>) {
         connectBase(inputs.observeStates()) {
-            function(it).observeOn(context.transactionExecutor.firstPhaseScheduler)
+            function(it).observeOn(context.transactionExecutor.scheduler)
         }
     }
 

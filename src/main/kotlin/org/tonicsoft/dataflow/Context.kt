@@ -13,12 +13,10 @@ class TransactionExecutor {
     private val executor = Executors.newSingleThreadExecutor { Thread(it, threadName) }
 
     private val firstPhaseTasks = LinkedBlockingQueue<Runnable>()
-    private val secondPhaseTasks = LinkedBlockingQueue<Runnable>()
-    val firstPhaseScheduler = Schedulers.from {
+    val scheduler = Schedulers.from {
         firstPhaseTasks.add(it)
         scheduleTransaction()
     }
-    val secondPhaseScheduler = Schedulers.from { secondPhaseTasks.add(it) }
 
     private var transactionMarker_: SingleSubject<Unit>? = null
     val transactionMarker: Single<Unit> get() = transactionMarker_ ?: throw RuntimeException("not in transaction")
@@ -27,7 +25,6 @@ class TransactionExecutor {
         transactionMarker_ = SingleSubject.create()
 
         firstPhaseTasks.runAllTasks()
-        secondPhaseTasks.runAllTasks()
 
         transactionMarker_?.onSuccess(Unit)
         transactionMarker_ = null
@@ -50,7 +47,7 @@ class Context {
         if (Thread.currentThread().name == transactionExecutor.threadName) {
             block()
         } else {
-            transactionExecutor.firstPhaseScheduler.scheduleDirect(block)
+            transactionExecutor.scheduler.scheduleDirect(block)
         }
     }
 }
