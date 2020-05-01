@@ -18,16 +18,14 @@ class TransactionExecutor {
         scheduleTransaction()
     }
 
-    private var transactionMarker_: SingleSubject<Unit>? = null
-    val transactionMarker: Single<Unit> get() = transactionMarker_ ?: throw RuntimeException("not in transaction")
+    private var transactionMarker_: SingleSubject<Unit> = SingleSubject.create()
+    val transactionMarker: Single<Unit> get() = transactionMarker_
 
     private fun runTransaction() {
-        transactionMarker_ = SingleSubject.create()
-
         firstPhaseTasks.runAllTasks()
 
-        transactionMarker_?.onSuccess(Unit)
-        transactionMarker_ = null
+        transactionMarker_.onSuccess(Unit)
+        transactionMarker_ = SingleSubject.create()
     }
 
     fun BlockingQueue<Runnable>.runAllTasks() {
